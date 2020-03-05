@@ -24,3 +24,8 @@ int main()
     test.exit();
 }
 ```
+### Compiling
+When compiling with `websocket.hpp`, make sure to link the `pthread` library as this library uses the library to allow for sending and receiving of data at the same time. Using `g++` for example:
+```
+g++ yourFile.cpp -lpthread -o yourOutput 
+```
