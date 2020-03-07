@@ -17,8 +17,6 @@
 #include <errno.h>
 #include <openssl/ssl.h>
 
-#include <iostream>
-
 class websocket
 {
 public:
@@ -134,22 +132,21 @@ public:
         char HTTPBuffer[1024];
         int recieved = SSL_read(SSLConnection, HTTPBuffer, sizeof(HTTPBuffer) - 1);
         //should probably process this to see if it is correct
-        std::cout << HTTPBuffer << std::endl;
 
         struct listenArguments* arguments;
         arguments = (listenArguments*)malloc(sizeof(listenArguments));
         arguments->SSLConnection = SSLConnection;
         arguments->listenerCallback = listenerCallback;
 
-        //pthread_create(&listenerThread, NULL, listen, (void*)arguments);
+        pthread_create(&listenerThread, NULL, listen, (void*)arguments);
 
         return 0;
     }
 
     void exit()
     {
-        //pthread_join(listenerThread, NULL);
-        //pthread_exit(NULL);
+        pthread_join(listenerThread, NULL);
+        pthread_exit(NULL);
     }
 
     void sendMessage(std::string message)
