@@ -153,11 +153,16 @@ public:
                     payloadLength += (uint64_t)payloadLengthBuffer[7];
             }
             char* textBuffer = new char[payloadLength + 1];
-            SSL_read(SSLConnection, textBuffer, payloadLength);
+            uint32_t bytesRecieved = 0;
+            while(bytesRecieved < payloadLength)
+            {
+                bytesRecieved += SSL_read(SSLConnection, textBuffer, payloadLength - bytesRecieved);
+            }
             textBuffer[payloadLength] = '\0';
             listenerCallback(textBuffer, payloadLength);
         }
         pthread_exit(0);
+        return NULL;
     }
 
     int connectSocket(std::string address, int port, void (*listenerCallback)(char*,int))
