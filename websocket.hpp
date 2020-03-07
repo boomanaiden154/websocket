@@ -15,13 +15,16 @@
 #include <climits>
 #include <pthread.h>
 #include <errno.h>
+#include <openssl/ssl.h>
+
+#include <iostream>
 
 class websocket
 {
 public:
     struct listenArguments
     {
-    	int sockfd;
+    	SSL* SSLConnection;
         void (*listenerCallback)(char*, int);
     };
 
@@ -58,18 +61,19 @@ public:
         return toReturn;
     }
 
-    int sockfd;
     pthread_t listenerThread;
+    SSL* SSLConnection;
+    struct url URL;
 
     static void* listen(void* args)
     {
         struct listenArguments* arguments = (struct listenArguments*)args;
-        int sockfd = arguments->sockfd;
+        SSL* SSLConnection = arguments->SSLConnection;
         void (*listenerCallback)(char*, int) = arguments->listenerCallback;
         while(true)
         {
             char socketBuffer[2];
-            int bytesRecieved1 = recv(sockfd, socketBuffer, sizeof(socketBuffer), 0);
+            int bytesRecieved1 = SSL_read(SSLConnection, socketBuffer, sizeof(socketBuffer));
             uint8_t payloadLengthSimple = socketBuffer[1] & 0b01111111; //get the seven least significant bits
             uint64_t payloadLength;
             if(payloadLengthSimple <= 125)
@@ -79,14 +83,14 @@ public:
             else if(payloadLengthSimple == 126)
             {
                     char payloadLengthBuffer[2];
-                    recv(sockfd, payloadLengthBuffer, sizeof(payloadLengthBuffer), 0);
+                    SSL_read(SSLConnection, payloadLengthBuffer, sizeof(payloadLengthBuffer));
                     payloadLength = (uint64_t)payloadLengthBuffer[0] << 8;
                     payloadLength += (uint64_t)payloadLengthBuffer[1];
             }
             else if(payloadLengthSimple == 127)
             {
                     char payloadLengthBuffer[8];
-                    recv(sockfd, payloadLengthBuffer, sizeof(payloadLengthBuffer), 0);
+                    SSL_read(SSLConnection, payloadLengthBuffer, sizeof(payloadLengthBuffer));
                     payloadLength = (uint64_t)payloadLengthBuffer[0] << 56;
                     payloadLength += (uint64_t)payloadLengthBuffer[1] << 48;
                     payloadLength += (uint64_t)payloadLengthBuffer[2] << 40;
@@ -97,7 +101,7 @@ public:
                     payloadLength += (uint64_t)payloadLengthBuffer[7];
             }
             char* textBuffer = new char[payloadLength + 1];
-            recv(sockfd, textBuffer, payloadLength, 0);
+            SSL_read(SSLConnection, textBuffer, payloadLength);
             textBuffer[payloadLength] = '\0';
             listenerCallback(textBuffer, payloadLength);
         }
@@ -106,39 +110,46 @@ public:
 
     int connectSocket(std::string address, int port, void (*listenerCallback)(char*,int))
     {
-        if(initalizeSocket(address, port) != 0)
+        URL = parseUrl(address);
+        int sockfd;
+        if((sockfd = initalizeSocket(address, port)) == -1)
         {
             return 1;
         }
+        if(initalizeSocketSSL(sockfd) != 0)
+        {
+            return 2;
+        }
 
-        std::string request = "GET / HTTP/1.1\r\n"
-            "Host: localhost\r\n"
+        std::string request = "GET wss://echo.websocket.org/ HTTP/1.1\r\n"
+            "Host: echo.websocket.org\r\n"
             "Upgrade: websocket\r\n"
             "Connection: Upgrade\r\n"
             "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
             "Origin: http://localhost\r\n"
             "Sec-WebSocket-Protocol: chat, superchat\r\n"
             "Sec-WebSocket-Version: 13\r\n\r\n";
-        send(sockfd, request.c_str(), request.length(), 0);
+        SSL_write(SSLConnection, request.c_str(), request.length());
 
         char HTTPBuffer[1024];
-        int recieved = recv(sockfd, HTTPBuffer, sizeof(HTTPBuffer) - 1, 0);
+        int recieved = SSL_read(SSLConnection, HTTPBuffer, sizeof(HTTPBuffer) - 1);
         //should probably process this to see if it is correct
+        std::cout << HTTPBuffer << std::endl;
 
         struct listenArguments* arguments;
         arguments = (listenArguments*)malloc(sizeof(listenArguments));
-        arguments->sockfd = sockfd;
+        arguments->SSLConnection = SSLConnection;
         arguments->listenerCallback = listenerCallback;
 
-        pthread_create(&listenerThread, NULL, listen, (void*)arguments);
+        //pthread_create(&listenerThread, NULL, listen, (void*)arguments);
 
         return 0;
     }
 
     void exit()
     {
-        pthread_join(listenerThread, NULL);
-        pthread_exit(NULL);
+        //pthread_join(listenerThread, NULL);
+        //pthread_exit(NULL);
     }
 
     void sendMessage(std::string message)
@@ -190,11 +201,13 @@ public:
             toSend[6 + offset + i] = message[i] ^ toSend[2 + offset + i % 4];
         }
 
-        send(sockfd, toSend, offset + 6 + message.length(), 0);
+        SSL_write(SSLConnection, toSend, offset + 6 + message.length());
     }
 
     int initalizeSocket(std::string address, int port)
     {
+        int sockfd;
+
         struct addrinfo hints;
         struct addrinfo* servinfo;
         struct addrinfo* p;
@@ -209,13 +222,13 @@ public:
         {
             if((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
             {
-                    return 1;
+                    return -1;
                     continue;
             }
             if(connect(sockfd, p->ai_addr, p->ai_addrlen) == -1)
             {
                     close(sockfd);
-                    return 1;
+                    return -1;
                     continue;
             }
             break;
@@ -223,10 +236,27 @@ public:
 
         if(p == NULL)
         {
-            return 1;
+            return -1;
         }
 
         freeaddrinfo(servinfo);
+
+        return sockfd;
+    }
+
+    int initalizeSocketSSL(int sockfd)
+    {
+        SSL_library_init();
+        SSL_CTX* SSLContext = SSL_CTX_new(SSLv23_client_method());
+        SSLConnection = SSL_new(SSLContext);
+        SSL_set_fd(SSLConnection, sockfd);
+
+        int errorCode = SSL_connect(SSLConnection);
+
+        if(errorCode != 1)
+        {
+            return errorCode;
+        }
 
         return 0;
     }

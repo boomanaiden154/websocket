@@ -1,12 +1,18 @@
 #include <iostream>
 #include "websocket.hpp"
 
+void listener(char* data, int length)
+{
+    printf("%s\n", data);
+}
+
 int main()
 {
-    std::string testing = "wss://127.0.0.1/";
+    std::string testing = "wss://echo.websocket.org/";
+    std::string host = "echo.websocket.org";
     websocket w;
-    struct websocket::url testingParsed = w.parseUrl(testing);
-    std::cout << testingParsed.protocol << std::endl;
-    std::cout << testingParsed.host << std::endl;
-    std::cout << testingParsed.path << std::endl;
+    int a = w.connectSocket(host, 443, listener);
+    std::cout << a << std::endl;
+    w.sendMessage("testing");
+    w.exit();
 }
