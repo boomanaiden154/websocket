@@ -18,11 +18,45 @@
 
 class websocket
 {
+public:
     struct listenArguments
     {
-            int sockfd;
-            void (*listenerCallback)(char*, int);
+    	int sockfd;
+        void (*listenerCallback)(char*, int);
     };
+
+    struct url
+    {
+        std::string protocol;
+        std::string host;
+        std::string path;
+    };
+
+    struct url parseUrl(std::string input)
+    {
+        struct url toReturn;
+        for(int i = 0; i < input.size(); i++)
+        {
+            if(input[i] == ':' && input[i + 1] == '/' && input[i + 2] == '/')
+            {
+                break;
+            }
+            toReturn.protocol += input[i];
+        }
+        for(int i = toReturn.protocol.size() + 3; i < input.size(); i++)
+        {
+            if(input[i] == '/')
+            {
+                break;
+            }
+            toReturn.host += input[i];
+        }
+        for(int i = toReturn.protocol.size() + 3 + toReturn.host.size(); i < input.size(); i++)
+        {
+            toReturn.path += input[i];
+        }
+        return toReturn;
+    }
 
     int sockfd;
     pthread_t listenerThread;
@@ -34,58 +68,57 @@ class websocket
         void (*listenerCallback)(char*, int) = arguments->listenerCallback;
         while(true)
         {
-                char socketBuffer[2];
-                int bytesRecieved1 = recv(sockfd, socketBuffer, sizeof(socketBuffer), 0);
-                uint8_t payloadLengthSimple = socketBuffer[1] & 0b01111111; //get the seven least significant bits
-                uint64_t payloadLength;
-                if(payloadLengthSimple <= 125)
-                {
-                        payloadLength = payloadLengthSimple;
-                }
-                else if(payloadLengthSimple == 126)
-                {
-                        char payloadLengthBuffer[2];
-                        recv(sockfd, payloadLengthBuffer, sizeof(payloadLengthBuffer), 0);
-                        payloadLength = (uint64_t)payloadLengthBuffer[0] << 8;
-                        payloadLength += (uint64_t)payloadLengthBuffer[1];
-                }
-                else if(payloadLengthSimple == 127)
-                {
-                        char payloadLengthBuffer[8];
-                        recv(sockfd, payloadLengthBuffer, sizeof(payloadLengthBuffer), 0);
-                        payloadLength = (uint64_t)payloadLengthBuffer[0] << 56;
-                        payloadLength += (uint64_t)payloadLengthBuffer[1] << 48;
-                        payloadLength += (uint64_t)payloadLengthBuffer[2] << 40;
-                        payloadLength += (uint64_t)payloadLengthBuffer[3] << 32;
-                        payloadLength += (uint64_t)payloadLengthBuffer[4] << 24;
-                        payloadLength += (uint64_t)payloadLengthBuffer[5] << 16;
-                        payloadLength += (uint64_t)payloadLengthBuffer[6] << 8;
-                        payloadLength += (uint64_t)payloadLengthBuffer[7];
-                }
-                char* textBuffer = new char[payloadLength + 1];
-                recv(sockfd, textBuffer, payloadLength, 0);
-                textBuffer[payloadLength] = '\0';
-                listenerCallback(textBuffer, payloadLength);
+            char socketBuffer[2];
+            int bytesRecieved1 = recv(sockfd, socketBuffer, sizeof(socketBuffer), 0);
+            uint8_t payloadLengthSimple = socketBuffer[1] & 0b01111111; //get the seven least significant bits
+            uint64_t payloadLength;
+            if(payloadLengthSimple <= 125)
+            {
+                    payloadLength = payloadLengthSimple;
+            }
+            else if(payloadLengthSimple == 126)
+            {
+                    char payloadLengthBuffer[2];
+                    recv(sockfd, payloadLengthBuffer, sizeof(payloadLengthBuffer), 0);
+                    payloadLength = (uint64_t)payloadLengthBuffer[0] << 8;
+                    payloadLength += (uint64_t)payloadLengthBuffer[1];
+            }
+            else if(payloadLengthSimple == 127)
+            {
+                    char payloadLengthBuffer[8];
+                    recv(sockfd, payloadLengthBuffer, sizeof(payloadLengthBuffer), 0);
+                    payloadLength = (uint64_t)payloadLengthBuffer[0] << 56;
+                    payloadLength += (uint64_t)payloadLengthBuffer[1] << 48;
+                    payloadLength += (uint64_t)payloadLengthBuffer[2] << 40;
+                    payloadLength += (uint64_t)payloadLengthBuffer[3] << 32;
+                    payloadLength += (uint64_t)payloadLengthBuffer[4] << 24;
+                    payloadLength += (uint64_t)payloadLengthBuffer[5] << 16;
+                    payloadLength += (uint64_t)payloadLengthBuffer[6] << 8;
+                    payloadLength += (uint64_t)payloadLengthBuffer[7];
+            }
+            char* textBuffer = new char[payloadLength + 1];
+            recv(sockfd, textBuffer, payloadLength, 0);
+            textBuffer[payloadLength] = '\0';
+            listenerCallback(textBuffer, payloadLength);
         }
         pthread_exit(0);
     }
 
-public:
     int connectSocket(std::string address, int port, void (*listenerCallback)(char*,int))
     {
         if(initalizeSocket(address, port) != 0)
         {
-                return 1;
+            return 1;
         }
 
         std::string request = "GET / HTTP/1.1\r\n"
-                "Host: localhost\r\n"
-                "Upgrade: websocket\r\n"
-                "Connection: Upgrade\r\n"
-                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
-                "Origin: http://localhost\r\n"
-                "Sec-WebSocket-Protocol: chat, superchat\r\n"
-                "Sec-WebSocket-Version: 13\r\n\r\n";
+            "Host: localhost\r\n"
+            "Upgrade: websocket\r\n"
+            "Connection: Upgrade\r\n"
+            "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+            "Origin: http://localhost\r\n"
+            "Sec-WebSocket-Protocol: chat, superchat\r\n"
+            "Sec-WebSocket-Version: 13\r\n\r\n";
         send(sockfd, request.c_str(), request.length(), 0);
 
         char HTTPBuffer[1024];
@@ -174,23 +207,23 @@ public:
 
         for(p = servinfo; p != NULL; p = p->ai_next)
         {
-                if((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
-                {
-                        return 1;
-                        continue;
-                }
-                if(connect(sockfd, p->ai_addr, p->ai_addrlen) == -1)
-                {
-                        close(sockfd);
-                        return 1;
-                        continue;
-                }
-                break;
+            if((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+            {
+                    return 1;
+                    continue;
+            }
+            if(connect(sockfd, p->ai_addr, p->ai_addrlen) == -1)
+            {
+                    close(sockfd);
+                    return 1;
+                    continue;
+            }
+            break;
         }
 
         if(p == NULL)
         {
-                return 1;
+            return 1;
         }
 
         freeaddrinfo(servinfo);
