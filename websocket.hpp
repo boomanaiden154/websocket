@@ -134,14 +134,14 @@ public:
             }
             else if(payloadLengthSimple == 126)
             {
-                    char payloadLengthBuffer[2];
+                    uint8_t payloadLengthBuffer[2];
                     SSL_read(SSLConnection, payloadLengthBuffer, sizeof(payloadLengthBuffer));
                     payloadLength = (uint64_t)payloadLengthBuffer[0] << 8;
                     payloadLength += (uint64_t)payloadLengthBuffer[1];
             }
             else if(payloadLengthSimple == 127)
             {
-                    char payloadLengthBuffer[8];
+                    uint8_t payloadLengthBuffer[8];
                     SSL_read(SSLConnection, payloadLengthBuffer, sizeof(payloadLengthBuffer));
                     payloadLength = (uint64_t)payloadLengthBuffer[0] << 56;
                     payloadLength += (uint64_t)payloadLengthBuffer[1] << 48;
