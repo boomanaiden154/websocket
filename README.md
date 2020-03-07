@@ -25,7 +25,7 @@ int main()
 }
 ```
 ### Compiling
-When compiling with `websocket.hpp`, make sure to link the `pthread` library as this library uses the library to allow for sending and receiving of data at the same time. Using `g++` for example:
+When compiling with `websocket.hpp`, make sure to link `pthread` and `OpenSSL` as this library uses these libraries to allow for sending and receiving of data at the same time, and for secure websockets. Using `g++` for example:
 ```
-g++ yourFile.cpp -lpthread -o yourOutput 
+g++ yourFile.cpp -lpthread -lssl -o yourOutput 
 ```
