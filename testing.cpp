@@ -11,7 +11,7 @@ int main()
     std::string testing = "wss://echo.websocket.org/";
     std::string host = "echo.websocket.org";
     websocket w;
-    int a = w.connectSocket(host, 443, listener);
+    int a = w.connectSocket(testing, 443, listener);
     w.sendMessage("testing");
     w.exit();
 }

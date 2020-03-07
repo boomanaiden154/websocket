@@ -110,7 +110,7 @@ public:
     {
         URL = parseUrl(address);
         int sockfd;
-        if((sockfd = initalizeSocket(address, port)) == -1)
+        if((sockfd = initalizeSocket(URL.host, port)) == -1)
         {
             return 1;
         }
@@ -119,8 +119,8 @@ public:
             return 2;
         }
 
-        std::string request = "GET wss://echo.websocket.org/ HTTP/1.1\r\n"
-            "Host: echo.websocket.org\r\n"
+        std::string request = "GET " + address + " HTTP/1.1\r\n"
+            "Host: " + URL.host + "\r\n"
             "Upgrade: websocket\r\n"
             "Connection: Upgrade\r\n"
             "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
