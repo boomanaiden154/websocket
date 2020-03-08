@@ -159,10 +159,7 @@ public:
             uint32_t bytesRecieved = 0;
             while(bytesRecieved < payloadLength)
             {
-                //std::cout << "thing:" << bytesRecieved << "/" << payloadLength << std::endl;
-                //std::cout << textBuffer << std::endl;
                 bytesRecieved += SSL_read(SSLConnection, textBuffer + bytesRecieved, payloadLength - bytesRecieved);
-                //std::cout << "thing:" << bytesRecieved << "/" << payloadLength << std::endl;
             }
             textBuffer[payloadLength] = '\0';
             listenerCallback(textBuffer, payloadLength);
