@@ -156,7 +156,7 @@ public:
             uint32_t bytesRecieved = 0;
             while(bytesRecieved < payloadLength)
             {
-                bytesRecieved += SSL_read(SSLConnection, textBuffer, payloadLength - bytesRecieved);
+                bytesRecieved += SSL_read(SSLConnection, textBuffer + bytesRecieved, payloadLength - bytesRecieved);
             }
             textBuffer[payloadLength] = '\0';
             listenerCallback(textBuffer, payloadLength);
