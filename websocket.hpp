@@ -23,7 +23,8 @@ class timer
     struct waitThenCallArguments
     {
         uint32_t toWait;
-        void (*callbackFunction)();
+        void (*callbackFunction)(void*);
+        void* arguments;
     };
 
     static void waitMilliseconds(uint32_t toWait)
@@ -38,7 +39,7 @@ class timer
     {
         waitThenCallArguments* args = (waitThenCallArguments*)arguments;
         waitMilliseconds(args->toWait);
-        args->callbackFunction();
+        args->callbackFunction(args->arguments);
         return NULL;
     }
 
@@ -50,23 +51,25 @@ class timer
         }
     }
 public:
-    static pthread_t asyncTimer(uint32_t toWait, void (*callbackFunction)())
+    static pthread_t asyncTimer(uint32_t toWait, void (*callbackFunction)(void*), void* arguments)
     {
-        waitThenCallArguments* arguments = (waitThenCallArguments*)malloc(sizeof(waitThenCallArguments));
-        arguments->callbackFunction = callbackFunction;
-        arguments->toWait = toWait;
+        waitThenCallArguments* argumentsToPass = (waitThenCallArguments*)malloc(sizeof(waitThenCallArguments));
+        argumentsToPass->callbackFunction = callbackFunction;
+        argumentsToPass->toWait = toWait;
+        argumentsToPass->arguments = arguments;
         pthread_t thread;
-        pthread_create(&thread, NULL, waitThenCall, arguments);
+        pthread_create(&thread, NULL, waitThenCall, argumentsToPass);
         return thread;
     }
 
-    static pthread_t asyncTimerRepeat(uint32_t toWait, void (*callbackFunction)())
+    static pthread_t asyncTimerRepeat(uint32_t toWait, void (*callbackFunction)(void*), void* arguments)
     {
-        waitThenCallArguments* arguments = (waitThenCallArguments*)malloc(sizeof(waitThenCallArguments));
-        arguments->callbackFunction = callbackFunction;
-        arguments->toWait = toWait;
+        waitThenCallArguments* argumentsToPass = (waitThenCallArguments*)malloc(sizeof(waitThenCallArguments));
+        argumentsToPass->callbackFunction = callbackFunction;
+        argumentsToPass->toWait = toWait;
+        argumentsToPass->arguments = arguments;
         pthread_t thread;
-        pthread_create(&thread, NULL, waitThenCallRepeat, arguments);
+        pthread_create(&thread, NULL, waitThenCallRepeat, argumentsToPass);
         return thread;
     }
 };
@@ -156,7 +159,10 @@ public:
             uint32_t bytesRecieved = 0;
             while(bytesRecieved < payloadLength)
             {
+                //std::cout << "thing:" << bytesRecieved << "/" << payloadLength << std::endl;
+                //std::cout << textBuffer << std::endl;
                 bytesRecieved += SSL_read(SSLConnection, textBuffer + bytesRecieved, payloadLength - bytesRecieved);
+                //std::cout << "thing:" << bytesRecieved << "/" << payloadLength << std::endl;
             }
             textBuffer[payloadLength] = '\0';
             listenerCallback(textBuffer, payloadLength);
