@@ -9,7 +9,6 @@ void listen(char* data, int length)
 int main()
 {
     websocket socket;
-    void (*listener)(char*, int) = listen;
     socket.connectSocket("127.0.0.1", 8081, listen);
     socket.exit();
 }
